@@ -1,0 +1,29 @@
+@startuml
+title Group Chat — Deployment Diagram
+skinparam linetype ortho
+
+node "Server Host" {
+  artifact "TCPServer.jar" as Server
+  artifact "server.properties\n(host / port)" as SCfg
+  Server ..> SCfg : reads at runtime
+}
+
+node "Client Host A" {
+  artifact "TCPClient.jar" as ClientA
+}
+node "Client Host B" {
+  artifact "TCPClient.jar" as ClientB
+}
+node "Client Host C\n(read-only guest)" {
+  artifact "TCPClient.jar" as ClientC
+}
+
+ClientA --> Server : TCP/IP socket : 3000
+ClientB --> Server : TCP/IP socket : 3000
+ClientC --> Server : TCP/IP socket : 3000
+
+note bottom of Server
+  Thread-per-connection:
+  one ClientHandler thread per client.
+end note
+@enduml

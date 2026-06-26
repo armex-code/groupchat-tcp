@@ -1,0 +1,132 @@
+@startuml
+title Group Chat — Class Diagram
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+hide empty members
+
+package "com.groupchat.server" {
+
+  class ServerLauncher as "Launcher" {
+    +{static} main(args : String[])
+  }
+
+  package model {
+    class ChatServer {
+      -port : int
+      -clients : List<ClientHandler>
+      -serverSocket : ServerSocket
+      -running : boolean
+      +start()
+      +stop()
+      +broadcast(fromUser : String, text : String)
+      +activeUsernames() : List<String>
+    }
+    class ClientHandler {
+      -socket : Socket
+      -username : String
+      -readOnly : boolean
+      +run()
+      +sendChat(message : String)
+      +close()
+    }
+    interface ServerEventListener {
+      +onLog(message : String)
+      +onUserConnected(username : String)
+      +onUserDisconnected(username : String)
+    }
+    class ServerConfig {
+      -host : String
+      -port : int
+      +{static} load() : ServerConfig
+    }
+    class ServerProtocol as "Protocol" << utility >> {
+      +{static} LOGIN, MSG, USERS, BYE
+      +{static} WELCOME, CHAT, INFO
+    }
+  }
+
+  package view {
+    class ServerApp {
+      -logArea : TextArea
+      -users : ObservableList<String>
+      -userColors : Map<String,String>
+      -server : ChatServer
+      +start(stage : Stage)
+      +onLog(message : String)
+      +onUserConnected(username : String)
+      +onUserDisconnected(username : String)
+    }
+  }
+}
+
+package "com.groupchat.client" {
+
+  class ClientLauncher as "Launcher" {
+    +{static} main(args : String[])
+  }
+
+  package model {
+    class ChatClient {
+      -host : String
+      -port : int
+      -socket : Socket
+      -readOnly : boolean
+      +connect(username : String)
+      +handleInput(text : String)
+      +disconnect()
+    }
+    interface ClientEventListener {
+      +onConnected(name : String, readOnly : boolean)
+      +onMessage(text : String)
+      +onUsersList(csv : String)
+      +onInfo(text : String)
+      +onDisconnected()
+    }
+    class ClientConfig {
+      -host : String
+      -port : int
+      +{static} load(args : String[]) : ClientConfig
+    }
+    class ClientProtocol as "Protocol" << utility >> {
+      +{static} LOGIN, MSG, USERS, BYE
+      +{static} WELCOME, CHAT, INFO
+    }
+  }
+
+  package view {
+    class ClientApp {
+      -chatArea : TextArea
+      -input : TextField
+      -sendButton : Button
+      -statusDot : Circle
+      -client : ChatClient
+      +start(stage : Stage)
+      +onConnected(name : String, readOnly : boolean)
+      +onMessage(text : String)
+      +onDisconnected()
+    }
+  }
+}
+
+' ---- server relationships ----
+ServerLauncher ..> ServerApp : launches
+ServerApp ..|> ServerEventListener
+ServerApp --> ChatServer : starts & observes
+ChatServer "1" o-- "0..*" ClientHandler : manages
+ChatServer ..> ServerEventListener : notifies
+ChatServer ..> ServerConfig : configured by
+ClientHandler ..> ServerProtocol
+ChatServer ..> ServerProtocol
+
+' ---- client relationships ----
+ClientLauncher ..> ClientApp : launches
+ClientApp ..|> ClientEventListener
+ClientApp --> ChatClient : drives & observes
+ChatClient ..> ClientEventListener : notifies
+ChatClient ..> ClientConfig : configured by
+ChatClient ..> ClientProtocol
+
+' ---- network link ----
+ChatClient ..> ClientHandler : TCP socket (port 3000)
+
+@enduml
