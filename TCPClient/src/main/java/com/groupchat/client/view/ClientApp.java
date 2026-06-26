@@ -115,13 +115,23 @@ public class ClientApp extends Application implements ClientEventListener {
         GridPane.setHgrow(input, Priority.ALWAYS);
 
         Scene scene = new Scene(grid, 560, 520);
-        scene.getStylesheets().add(getClass().getResource("/client.css").toExternalForm());
+        applyStylesheet(scene, "/client.css");
 
         stage.setTitle("TCPClient — Group Chat");
         stage.setScene(scene);
         stage.show();
 
         stage.setOnCloseRequest(e -> shutdown());
+    }
+
+    /** Loads a CSS stylesheet if present; styling is optional, so a missing file is not fatal. */
+    private void applyStylesheet(Scene scene, String path) {
+        var url = getClass().getResource(path);
+        if (url != null) {
+            scene.getStylesheets().add(url.toExternalForm());
+        } else {
+            System.err.println("Stylesheet " + path + " not found on classpath; using default styling.");
+        }
     }
 
     private void onSend() {

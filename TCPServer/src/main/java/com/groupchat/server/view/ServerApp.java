@@ -45,7 +45,7 @@ public class ServerApp extends Application implements ServerEventListener {
         ServerConfig config = ServerConfig.load();
 
         Scene scene = new Scene(buildLayout(), 760, 480);
-        scene.getStylesheets().add(getClass().getResource("/server.css").toExternalForm());
+        applyStylesheet(scene, "/server.css");
 
         stage.setTitle("TCPServer — Group Chat");
         stage.setScene(scene);
@@ -60,6 +60,16 @@ public class ServerApp extends Application implements ServerEventListener {
         }
 
         stage.setOnCloseRequest(e -> shutdown());
+    }
+
+    /** Loads a CSS stylesheet if present; styling is optional, so a missing file is not fatal. */
+    private void applyStylesheet(Scene scene, String path) {
+        var url = getClass().getResource(path);
+        if (url != null) {
+            scene.getStylesheets().add(url.toExternalForm());
+        } else {
+            System.err.println("Stylesheet " + path + " not found on classpath; using default styling.");
+        }
     }
 
     private GridPane buildLayout() {
