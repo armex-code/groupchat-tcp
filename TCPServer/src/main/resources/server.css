@@ -1,32 +1,88 @@
-.root-grid {
-    -fx-background-color: #f4f6f8;
+/* ============================================================
+   Group Chat — Server theme (modern)
+   Light shell with a dark terminal-style activity log.
+   ============================================================ */
+
+.app-root {
+    -fx-background-color: linear-gradient(to bottom right, #eef2ff, #f8fafc);
+    -fx-font-family: "Segoe UI", "Inter", sans-serif;
+}
+
+/* ---- Header ---- */
+.header {
+    -fx-background-color: white;
+    -fx-background-radius: 16;
+    -fx-padding: 16 20;
+    -fx-effect: dropshadow(gaussian, rgba(15, 23, 42, 0.08), 18, 0, 0, 4);
 }
 
 .title {
-    -fx-font-size: 20px;
+    -fx-font-size: 22px;
     -fx-font-weight: bold;
-    -fx-text-fill: #2c3e50;
+    -fx-text-fill: #1e293b;
 }
 
-.label {
-    -fx-text-fill: #34495e;
+.subtitle {
+    -fx-font-size: 12px;
+    -fx-text-fill: #94a3b8;
+}
+
+.running-badge {
+    -fx-background-color: #dcfce7;
+    -fx-text-fill: #15803d;
     -fx-font-weight: bold;
+    -fx-font-size: 12px;
+    -fx-background-radius: 999;
+    -fx-padding: 6 14;
 }
 
-.text-area {
-    -fx-font-family: "monospace";
-    -fx-font-size: 13px;
-    -fx-control-inner-background: #1e272e;
-    -fx-text-fill: #ecf0f1;
-    -fx-highlight-fill: #3498db;
-}
-
-.text-area .content {
-    -fx-background-color: #1e272e;
-}
-
-.list-view {
+/* ---- Panels ---- */
+.panel {
     -fx-background-color: white;
-    -fx-border-color: #dfe4ea;
-    -fx-border-radius: 4;
+    -fx-background-radius: 16;
+    -fx-padding: 14;
+    -fx-effect: dropshadow(gaussian, rgba(15, 23, 42, 0.06), 16, 0, 0, 4);
+}
+
+.section-label {
+    -fx-text-fill: #64748b;
+    -fx-font-weight: bold;
+    -fx-font-size: 12px;
+}
+
+/* ---- Activity log (terminal look) ---- */
+.log-area {
+    -fx-font-family: "Consolas", "monospace";
+    -fx-font-size: 13px;
+    -fx-control-inner-background: #0f172a;
+    -fx-text-fill: #e2e8f0;
+    -fx-highlight-fill: #6366f1;
+    -fx-background-radius: 12;
+}
+
+.log-area .content {
+    -fx-background-color: #0f172a;
+    -fx-background-radius: 12;
+    -fx-padding: 10;
+}
+
+.log-area .scroll-bar:vertical .thumb {
+    -fx-background-color: #334155;
+    -fx-background-radius: 8;
+}
+
+/* ---- Users list ---- */
+.list-view {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-padding: 0;
+}
+
+.list-view .list-cell {
+    -fx-padding: 2 0;
+    -fx-background-color: transparent;
+}
+
+.list-view:focused {
+    -fx-background-color: transparent;
 }

@@ -13,10 +13,10 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextInputDialog;
-import javafx.scene.layout.ColumnConstraints;
-import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.stage.Stage;
@@ -76,45 +76,50 @@ public class ClientApp extends Application implements ClientEventListener {
     }
 
     private void buildUI(Stage stage) {
+        // ---- Header bar ----
         Label title = new Label("Group Chat");
         title.getStyleClass().add("title");
+        Label subtitle = new Label("TCP messaging");
+        subtitle.getStyleClass().add("subtitle");
+        VBox titleBox = new VBox(2, title, subtitle);
 
-        HBox status = new HBox(6, statusDot, statusLabel);
-        status.setAlignment(Pos.CENTER_RIGHT);
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
 
+        statusLabel.getStyleClass().add("status-label");
+        HBox statusPill = new HBox(8, statusDot, statusLabel);
+        statusPill.setAlignment(Pos.CENTER);
+        statusPill.getStyleClass().add("status-pill");
+
+        HBox header = new HBox(12, titleBox, spacer, statusPill);
+        header.setAlignment(Pos.CENTER_LEFT);
+        header.getStyleClass().add("header");
+
+        // ---- Chat surface ----
         chatArea.setEditable(false);
         chatArea.setWrapText(true);
+        chatArea.getStyleClass().add("message-area");
+        VBox.setVgrow(chatArea, Priority.ALWAYS);
 
+        // ---- Composer ----
         input.setPromptText("Type a message, or 'allUsers', 'end', 'bye' ...");
         input.setOnAction(e -> onSend());
+        input.getStyleClass().add("input-field");
+        HBox.setHgrow(input, Priority.ALWAYS);
 
         sendButton.setDefaultButton(true);
-        sendButton.setMaxWidth(Double.MAX_VALUE);
         sendButton.setOnAction(e -> onSend());
+        sendButton.getStyleClass().add("send-button");
 
-        GridPane grid = new GridPane();
-        grid.getStyleClass().add("root-grid");
-        grid.setHgap(10);
-        grid.setVgap(10);
-        grid.setPadding(new Insets(16));
+        HBox composer = new HBox(10, input, sendButton);
+        composer.setAlignment(Pos.CENTER);
+        composer.getStyleClass().add("composer");
 
-        ColumnConstraints inputCol = new ColumnConstraints();
-        inputCol.setPercentWidth(78);
-        ColumnConstraints buttonCol = new ColumnConstraints();
-        buttonCol.setPercentWidth(22);
-        grid.getColumnConstraints().addAll(inputCol, buttonCol);
+        VBox root = new VBox(14, header, chatArea, composer);
+        root.getStyleClass().add("app-root");
+        root.setPadding(new Insets(18));
 
-        grid.add(title, 0, 0);
-        grid.add(status, 1, 0);
-        grid.add(chatArea, 0, 1, 2, 1);
-        grid.add(input, 0, 2);
-        grid.add(sendButton, 1, 2);
-
-        GridPane.setVgrow(chatArea, Priority.ALWAYS);
-        GridPane.setHgrow(chatArea, Priority.ALWAYS);
-        GridPane.setHgrow(input, Priority.ALWAYS);
-
-        Scene scene = new Scene(grid, 560, 520);
+        Scene scene = new Scene(root, 600, 560);
         applyStylesheet(scene, "/client.css");
 
         stage.setTitle("TCPClient — Group Chat");
