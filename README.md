@@ -1,96 +1,103 @@
-# Group Chat Application (TCP + JavaFX)
+# Group Chat (TCP + JavaFX)
 
-A real-time group chat built on **Java Sockets (TCP)** and **JavaFX**. A central
-server relays messages between many connected clients in a shared chat room.
+A small real-time group chat written with Java sockets and JavaFX. One server sits
+in the middle and relays messages between everyone connected to the same room.
 
-This repository contains two independent Maven projects, aggregated by a parent POM:
+The repo is two Maven projects tied together by a parent POM:
 
-| Module      | Description                                                        |
-|-------------|--------------------------------------------------------------------|
-| `TCPServer` | JavaFX server: accepts connections, distributes messages, logs activity, shows connected users. |
-| `TCPClient` | JavaFX client: logs in with a username, sends/receives messages, runs commands. |
+- `TCPServer` — the server UI. Accepts connections, forwards messages, keeps a log,
+  and lists who's online.
+- `TCPClient` — the client UI. Pick a username, then send and read messages.
 
----
+## What it does
 
-## Features
+On the client side you log in with a username before you can chat. If you leave the
+username blank you still connect, but in read-only mode — you can follow along but
+the input box stays disabled. Once you're in, type a message and press Enter (or hit
+SEND). Typing `allUsers` asks the server who's currently connected, and `end` or `bye`
+disconnects you cleanly. There's a small Online/Offline label with a coloured dot so
+you can tell the connection state at a glance.
 
-### Client
-- **Authentication & identity** — enter a username before chatting.
-- **Read-only mode** — connect without a username and you can read messages but not send.
-- **Real-time messaging** — type and hit **Enter** or **SEND**.
-- **Active user inquiry** — type `allUsers` to get the list of currently connected users.
-- **Disconnect** — type `end` or `bye` to leave; the socket is closed and the server is notified.
-- **Status indicators** — an *Online / Offline* label and a coloured status dot.
+The server handles several clients at once, one thread per connection. Every message
+gets tagged with the sender's name and the time before it goes back out to everyone.
+Connected users show up in a list, each with a random background colour so they're
+easy to tell apart, and the activity log records the interesting events — startup,
+new clients, broadcasts, disconnects.
 
-### Server
-- **Multiple simultaneous connections** (thread-per-connection).
-- **Message distribution** — each message is stamped with the sender's username and time, then broadcast to everyone.
-- **Live user list** — a `ListView` of connected usernames, each with a **random background colour** for readability.
-- **Activity log** — `Server Started`, `Waiting for Client ...`, `Welcome <user>`, broadcasts, disconnects.
+## How it's put together
 
----
-
-## Architecture
-
-The application follows a **Server–Client** model and strictly separates logic from UI
-(Separation of Concerns):
+It's a plain server–client setup, and the networking is kept separate from the UI so
+neither one depends on the other:
 
 ```
 com.groupchat.server
-├── Launcher                 ← plain main(), launches the JavaFX app
-├── model/                   ← NO JavaFX imports
-│   ├── ChatServer           ← accept loop, broadcast, user registry
-│   ├── ClientHandler        ← one per connection (its own thread)
-│   ├── ServerConfig         ← loads host/port from server.properties
-│   ├── ServerEventListener  ← observer: model → view
-│   └── Protocol             ← textual wire protocol
+├── Launcher                 plain main(), launches the JavaFX app
+├── model/                   no JavaFX in here
+│   ├── ChatServer           accept loop, broadcast, user registry
+│   ├── ClientHandler        one per connection (own thread)
+│   ├── ServerConfig         host/port from server.properties
+│   ├── ServerEventListener  model talks to the view through this
+│   └── Protocol             the wire format
 └── view/
-    └── ServerApp            ← JavaFX UI; implements ServerEventListener
+    └── ServerApp            JavaFX UI, implements ServerEventListener
 
 com.groupchat.client
 ├── Launcher
-├── model/                   ← NO JavaFX imports
-│   ├── ChatClient           ← connect, send, background reader thread
-│   ├── ClientConfig         ← loads host/port (args > properties)
-│   ├── ClientEventListener  ← observer: model → view
+├── model/                   no JavaFX in here
+│   ├── ChatClient           connect, send, background reader thread
+│   ├── ClientConfig         host/port (args win over properties)
+│   ├── ClientEventListener
 │   └── Protocol
 └── view/
-    └── ClientApp            ← JavaFX UI; implements ClientEventListener
+    └── ClientApp            JavaFX UI, implements ClientEventListener
 ```
 
-The **model** layer knows nothing about JavaFX; it communicates with the **view** only
-through the `*EventListener` interfaces. The UI could be swapped (CLI, web, …) without
-touching the networking code.
+The model layer never imports JavaFX — it only reaches the UI through the
+`*EventListener` interfaces. So in principle you could drop in a CLI or web front end
+without touching the socket code.
 
-### Concurrency model
-The server uses **thread-per-connection**: a dedicated acceptor thread waits on
-`ServerSocket.accept()` and gives each new socket its own `ClientHandler` thread. This is
-simple and clear for classroom-scale loads. For very large client counts the
-non-blocking alternative — a single thread with an NIO `Selector` multiplexing many
-`SocketChannel`s — scales better; it is intentionally left as a possible evolution.
+For concurrency the server uses thread-per-connection: an acceptor thread blocks on
+`ServerSocket.accept()` and hands each new socket to its own `ClientHandler` thread.
+That's plenty for a classroom-sized room. If you ever needed to handle a huge number
+of clients, the usual next step is a single thread with an NIO `Selector` multiplexing
+the sockets — left out here on purpose to keep things readable.
 
 ### Wire protocol
-Newline-delimited UTF-8 text frames of the form `TYPE|payload`:
 
-| Direction        | Frame                       | Meaning                                  |
-|------------------|-----------------------------|------------------------------------------|
-| client → server  | `LOGIN\|<username>`         | First frame; empty username = read-only  |
-| client → server  | `MSG\|<text>`               | Send a chat message                      |
-| client → server  | `USERS`                     | Request the active-user list             |
-| client → server  | `BYE`                       | Graceful disconnect                      |
-| server → client  | `WELCOME\|<username>` / `WELCOME\|READONLY` | Login acknowledged       |
-| server → client  | `CHAT\|[time] user: text`   | A message to display                     |
-| server → client  | `USERS\|a, b, c`            | Response to `allUsers`                   |
-| server → client  | `INFO\|<text>`              | System notice                            |
+Messages are newline-delimited UTF-8 text, shaped like `TYPE|payload`:
 
----
+| Direction        | Frame                                       | Meaning                                 |
+|------------------|---------------------------------------------|-----------------------------------------|
+| client → server  | `LOGIN\|<username>`                         | First frame; empty username = read-only |
+| client → server  | `MSG\|<text>`                               | Send a chat message                     |
+| client → server  | `USERS`                                      | Ask for the active-user list            |
+| client → server  | `BYE`                                         | Graceful disconnect                     |
+| server → client  | `WELCOME\|<username>` / `WELCOME\|READONLY` | Login acknowledged                      |
+| server → client  | `CHAT\|[time] user: text`                   | A message to display                    |
+| server → client  | `USERS\|a, b, c`                            | Response to `allUsers`                  |
+| server → client  | `INFO\|<text>`                              | System notice                           |
+
+## Diagrams
+
+### Class diagram
+![Class diagram](docs/class-diagram.png)
+
+### Sequence diagram
+![Sequence diagram](docs/sequence-diagram.png)
+
+### Use case diagram
+![Use case diagram](docs/usecase-diagram.png)
+
+### Deployment diagram
+![Deployment diagram](docs/deployment-diagram.png)
 
 ## Configuration
 
-Network settings are loaded **at runtime** (no recompilation needed). Resolution order:
+Network settings are read at runtime, so you don't recompile to change them. They're
+resolved in this order:
 
 1. command-line arguments (client only): `<serverIp> <port>`
-2. an external `server.properties` / `client.properties` placed next to the JAR
+2. an external `server.properties` / `client.properties` next to the JAR
 3. the bundled properties file
 4. built-in defaults (`localhost:3000`)
 
@@ -106,69 +113,51 @@ server.host=localhost
 server.port=3000
 ```
 
----
+## Building
 
-## Build
-
-Requires **JDK 21+** and **Maven 3.9+**.
+You'll need JDK 21+ and Maven 3.9+.
 
 ```bash
-# Build both modules and produce executable JARs
 mvn clean package
 ```
 
-Artifacts:
+That produces the two runnable JARs:
+
 - `TCPServer/target/TCPServer.jar`
 - `TCPClient/target/TCPClient.jar`
 
-> The JARs bundle the JavaFX libraries for the platform they are built on. Build on the
-> OS you intend to run on, or just use `mvn javafx:run` (below), which resolves the right
-> JavaFX binaries automatically.
+The JARs bundle the JavaFX libraries for whatever platform you build on, so build on
+the OS you plan to run on. Or skip the JARs and use `mvn javafx:run`, which pulls the
+right JavaFX binaries for you.
 
-## Run
+## Running
 
-### Option A — Maven (recommended during development)
+During development the Maven plugin is the easy path:
+
 ```bash
-# Terminal 1 — server
+# server
 mvn -pl TCPServer javafx:run
 
-# Terminal 2 — a client (add more terminals for more clients)
+# client (open more terminals for more clients)
 mvn -pl TCPClient javafx:run
 ```
 
-### Option B — executable JARs
-```bash
-# Server
-java -jar TCPServer/target/TCPServer.jar
+Or run the JARs directly:
 
-# Client (host/port optional; falls back to client.properties)
+```bash
+java -jar TCPServer/target/TCPServer.jar
 java -jar TCPClient/target/TCPClient.jar localhost 3000
 ```
 
-### Trying it out
-1. Start the server — the log shows `Server Started` and `Waiting for Client ...`.
-2. Start a client, enter a username → you appear in the server's user list with a colour.
-3. Start another client, send messages → both clients receive them in real time.
-4. Type `allUsers` to see who is online.
-5. Start a client and leave the username blank → read-only mode (input disabled).
-6. Type `end` or `bye`, or close the window, to disconnect.
+To see it work: start the server (the log shows `Server Started` and
+`Waiting for Client ...`), start a client and pick a username — you'll appear in the
+server's user list. Open another client, send a message, and both clients get it in
+real time. `allUsers` shows who's online, and leaving the username blank gives you a
+read-only client. `end`, `bye`, or just closing the window disconnects you.
 
----
+## Stack
 
-## Technical architecture (UML)
-
-Diagrams live in [`docs/`](docs/) (Mermaid renders directly on GitHub):
-
-- [Class diagram](docs/class-diagram.md)
-- [Deployment diagram](docs/deployment-diagram.md) (Mermaid + PlantUML)
-- [Sequence diagram](docs/sequence-diagram.md)
-- [Use case diagram](docs/usecase-diagram.md)
-
----
-
-## Technology stack
-- **Language:** Java 21
-- **Networking:** Java Sockets (TCP)
-- **GUI:** JavaFX (GridPane layout + CSS styling)
-- **Build:** Maven (multi-module, `maven-shade-plugin` for executable JARs)
-- **IDE:** IntelliJ IDEA
+Java 21, plain TCP sockets for the networking, JavaFX for the UI (CSS-styled), and
+Maven for the multi-module build with the shade plugin producing the executable JARs.
+Developed in IntelliJ IDEA.
+</content>
