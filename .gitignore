@@ -13,6 +13,3 @@ out/
 # OS
 .DS_Store
 Thumbs.db
-
-# Large media (exceeds GitHub 100MB limit)
-*.mp4
